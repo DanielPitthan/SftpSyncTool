@@ -1,0 +1,40 @@
+{
+  "Name": "Monitoramento de pastas VAN bancária - ITAÚ",
+  "Version": "1.0",
+  "FolderMaps": [
+    {
+      "Name": "Processando todos os arquivos da pasta \\iconnet\\out",
+      "FolderPath": "C:\\Temp\\inConnet\\out",
+      "SFTPPathDestination": "SFTP:/inConnect/Teste",
+      "ProcessedFilesOnError": "C:\\Temp\\inConnet\\error",
+      "ProcessedFilesOnSuccess": "C:\\Temp\\inConnet\\processed",
+      "EmailNotify": "email de notificação ",
+      "TasksMaps": [
+        {
+          "Name": "Copinado arquivo para o destino | copy:@SFTPPathDestination",
+          "Order": 1,
+          "Task": "copy:@FolderPath:@SFTPPathDestination"
+
+        },
+        {
+          "Name": "Verificando se foi copiado com sucesso | check:@SFTPPathDestination",
+          "Order": 2,
+          "Task": "check:@FolderPath:@SFTPPathDestination"
+        },
+        {
+          "Name": "Movendo o arquivo para a pasta de processamento | move:@FolderPath:@ProcessedFilesOnSuccess",
+          "Order": 3,
+          "Task": "move:@FolderPath:@ProcessedFilesOnSuccess"
+        },        
+        {
+          "Name": "Enviando notificação | @EmailNotify",
+          "Order": 4,
+          "Task": "notify"
+
+        }
+      ]
+
+    }
+  ]
+
+}
