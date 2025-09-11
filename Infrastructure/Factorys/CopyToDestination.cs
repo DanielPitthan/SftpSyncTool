@@ -17,20 +17,20 @@ namespace Infrastructure.Factorys
         {
             if (taskActions == null)
             {
-                return new TaskActions { Success = false, Message = "TaskActions não pode ser null." };
+                return new TaskActions { Success = false, Message = "TaskActions não pode ser null.\n" };
             }
 
             if (string.IsNullOrWhiteSpace(taskActions.Argument1))
             {
                 taskActions.Success = false;
-                taskActions.Message = "Caminho de origem (Argument1) não pode ser nulo ou vazio.";
+                taskActions.Message = "Caminho de origem (Argument1) não pode ser nulo ou vazio.\n";
                 return taskActions;
             }
 
             if (string.IsNullOrWhiteSpace(taskActions.Argument2))
             {
                 taskActions.Success = false;
-                taskActions.Message = "Caminho de destino (Argument2) não pode ser nulo ou vazio.";
+                taskActions.Message = "Caminho de destino (Argument2) não pode ser nulo ou vazio.\n";
                 return taskActions;
             }
 
@@ -41,7 +41,7 @@ namespace Infrastructure.Factorys
                 if (files == null || !files.Any())
                 {
                     taskActions.Success = true;
-                    taskActions.Message = "Nenhum arquivo encontrado para cópia.";
+                    taskActions.Message = "Nenhum arquivo encontrado para cópia.\n";
                     return taskActions;
                 }
 
@@ -60,19 +60,19 @@ namespace Infrastructure.Factorys
             catch (DirectoryNotFoundException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Diretório não encontrado: {ex.Message}";
+                taskActions.Message = $"Diretório não encontrado: {ex.Message}\n";
                 return taskActions;
             }
             catch (UnauthorizedAccessException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Acesso negado: {ex.Message}";
+                taskActions.Message = $"Acesso negado: {ex.Message}\n";
                 return taskActions;
             }
             catch (Exception ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro inesperado ao executar cópia: {ex.Message}";
+                taskActions.Message = $"Erro inesperado ao executar cópia: {ex.Message}\n";
                 return taskActions;
             }
         }
@@ -88,7 +88,7 @@ namespace Infrastructure.Factorys
             if (files == null)
             {
                 taskActions.Success = false;
-                taskActions.Message = "Lista de arquivos é null.";
+                taskActions.Message = "Lista de arquivos é null.\n";
                 return taskActions;
             }
 
@@ -96,7 +96,7 @@ namespace Infrastructure.Factorys
             if (!fileList.Any())
             {
                 taskActions.Success = true;
-                taskActions.Message = "Nenhum arquivo para copiar.";
+                taskActions.Message = "Nenhum arquivo para copiar.\n";
                 return taskActions;
             }
 
@@ -146,6 +146,8 @@ namespace Infrastructure.Factorys
 
                         File.Copy(file.FullName, destinationFile, overwrite: true);
                         taskActions.Message += $"Arquivo copiado: {file.Name}\r\n";
+
+                        taskActions.FilesProcessed.Add(file.Name);
                         copiedFiles++;
                     }
                     catch (IOException ex)
@@ -161,7 +163,7 @@ namespace Infrastructure.Factorys
                 taskActions.Success = copiedFiles > 0;
                 if (taskActions.Success)
                 {
-                    taskActions.Message += $"Total de {copiedFiles} arquivo(s) processado(s) com sucesso para o diretório local.";
+                    taskActions.Message += $"Total de {copiedFiles} arquivo(s) processado(s) com sucesso para o diretório local.\r\n";
                 }
                 else
                 {
@@ -276,6 +278,9 @@ namespace Infrastructure.Factorys
                         fs = File.OpenRead(file.FullName);
                         clientSFTP.UploadFile(fs, remoteFilePath);
                         taskActions.Message += $"Arquivo copiado: {file.Name}\r\n";
+
+                        taskActions.FilesProcessed.Add(file.Name);
+
                         copiedFiles++;
                     }
                     catch (IOException ex)

@@ -185,7 +185,7 @@ namespace CopyToSFTPObserver
             bool inspectOnCopy = false;
             string inspectPartOfFile = string.Empty;
             bool goToNextTask = true;
-            bool notify = false;
+            bool sholdNotify = false;
 
 
             string emailText = @"<!DOCTYPE html>
@@ -226,9 +226,12 @@ namespace CopyToSFTPObserver
                         task.ShouldInspect = inspectOnCopy;
                         task.InspectPartOfFile = inspectPartOfFile;
 
-                        var result = task.ExecuteCopy();
+                        TaskActions? result = task.ExecuteCopy();
                         goToNextTask = result?.Success ?? false;
-                        notify = result.Success; //Se a cópia foi bem sucedida, envia notificação
+                        
+                        
+                        sholdNotify = result.FilesProcessed.Count>0;
+
 
                         emailText += result?.Message + "<br />" ?? "Resultado da cópia não disponível  <br />";
                         _logger.LogInformation(result?.Message ?? "Resultado da cópia não disponível");
@@ -289,7 +292,7 @@ namespace CopyToSFTPObserver
                     }
 
 
-                    if (task.Action == TypeOfTasks.notify && goToNextTask && notify)
+                    if (task.Action == TypeOfTasks.notify && goToNextTask && sholdNotify)
                     {
                         emailText += @"</body>
                                         </html>";

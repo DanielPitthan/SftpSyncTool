@@ -9,10 +9,10 @@ namespace Models.MappingTasks
         public string InspectPartOfFile;
 
         public TaskActions() { }
-        public TaskActions(TypeOfTasks typeOfTasks,string name)
+        public TaskActions(TypeOfTasks typeOfTasks, string name)
         {
             Action = typeOfTasks;
-            Name = name;    
+            Name = name;
             Argument1 = string.Empty;
             Argument2 = string.Empty;
             Argument3 = string.Empty;
@@ -20,7 +20,7 @@ namespace Models.MappingTasks
             Argument5 = string.Empty;
         }
 
-        public TaskActions(TypeOfTasks typeOfTasks, string name,string argument1)
+        public TaskActions(TypeOfTasks typeOfTasks, string name, string argument1)
         {
             Action = typeOfTasks;
             Name = name;
@@ -80,7 +80,6 @@ namespace Models.MappingTasks
         public string Argument3 { get; set; }
         public string Argument4 { get; set; }
         public string Argument5 { get; set; }
-
-       
+        public IList<string> FilesProcessed { get; set; } = new List<string>();
     }
 }
