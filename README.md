@@ -1,4 +1,4 @@
-﻿# CopyToSFTPObserver
+﻿# SftpSyncTool
 
 ## Visão geral
 
