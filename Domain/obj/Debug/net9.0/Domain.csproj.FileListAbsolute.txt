@@ -1,0 +1,12 @@
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\bin\Debug\net9.0\Domain.deps.json
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\bin\Debug\net9.0\Domain.dll
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\bin\Debug\net9.0\Domain.pdb
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.csproj.AssemblyReference.cache
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.AssemblyInfoInputs.cache
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.AssemblyInfo.cs
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.csproj.CoreCompileInputs.cache
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.dll
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\refint\Domain.dll
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\Domain.pdb
+C:\Projetos\Ferramentas\CopyToSFTPObserver\Domain\obj\Debug\net9.0\ref\Domain.dll
