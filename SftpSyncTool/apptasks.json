@@ -1,0 +1,48 @@
+﻿{
+  "Name": "Monitoramento de pastas VAN bancária - ITAÚ",
+  "Version": "1.0",
+  "FolderMaps": [
+    {
+      //Variáveis de configuração para cada pasta
+      "Name": "Processando todos os arquivos da pasta C:\\COLOCERAM\\RETORNO\\PROD\\008\\",
+      "FolderPathOrigin": "C:\\COLOCERAM\\RETORNO\\PROD\\008\\",
+      "SFTPPathDestination": "SFTP:/system/RETORNOS/BANCO341/341_@Inspect_VAR/008/PROCESSAR",
+      "ProcessedFilesOnError": "C:\\COLOCERAM\\RETORNO_ERROR_008",
+      "ProcessedFilesOnSuccess": "C:\\COLOCERAM\\RETORNO_PROCESSADO_008",
+      "EmailNotify": "daniel.silveira@colorobbia.com.br",
+      "InspectLocation": "L00001(0059,0071)",
+
+      //Tarefas a serem executadas em sequência
+      "TasksMaps": [
+        {
+          "Name": "Informa se durante a cópia deve inspecioner o arquivo e gravar os dados na Inspect_VAR - Linha 1 posição 59 a 71 L1(59,71)",
+          "Order": 1,
+          "Task": "inspect:@InspectLocation"
+        },
+        {
+          "Name": "Copinado arquivo para o destino | copy:@SFTPPathDestination",
+          "Order": 2,
+          "Task": "copy:@FolderPathOrigin:@SFTPPathDestination"
+
+        },
+        {
+          "Name": "Verificando se foi copiado com sucesso | check:@SFTPPathDestination",
+          "Order": 3,
+          "Task": "check:@FolderPathOrigin:@SFTPPathDestination"
+        },
+        {
+          "Name": "Movendo o arquivo para a pasta de processamento | move:@FolderPath:@ProcessedFilesOnSuccess",
+          "Order": 4,
+          "Task": "move:@FolderPathOrigin:@ProcessedFilesOnSuccess"
+        },
+        {
+          "Name": "Enviando notificação | @EmailNotify",
+          "Order": 5,
+          "Task": "notify"
+
+        }
+      ]
+
+    }
+  ]
+}
