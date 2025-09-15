@@ -1,4 +1,4 @@
-using Infrastructure;
+ï»¿using Infrastructure;
 using Models.Configurations;
 using Services.CustomLogger;
 
@@ -10,7 +10,7 @@ namespace CopyToSFTPObserver
         {
             HostApplicationBuilder? builder = Host.CreateApplicationBuilder(args);
 
-            // Configurar a classe de configuração
+            // Configurar a classe de configuraÃ§Ã£o
             builder.Services.Configure<AppSettings>(builder.Configuration);
 
             AppSettings appSettings = new();
@@ -29,7 +29,7 @@ namespace CopyToSFTPObserver
 
 
             // Configurar o logger personalizado
-            builder.Logging.ClearProviders(); // Remove providers padrão
+            builder.Logging.ClearProviders(); // Remove providers padrÃ£o
             builder.Logging.AddFileLogger((config) =>
             {
                 config.LogDirectory = appSettings.LogFile;
@@ -43,6 +43,7 @@ namespace CopyToSFTPObserver
             builder.Services.AddHostedService<Worker>();
 
             builder.Services.AddSingleton<AppTaskMapperConfigurator>();
+            builder.Services.AddHostedService<HttpServerWorker>(); // <- servidor HTTP
 
             var host = builder.Build();
             host.Run();
