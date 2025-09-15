@@ -259,11 +259,10 @@ namespace Infrastructure.Factorys
                         }
 
                         var exists = clientSFTP.Exists(remoteFilePath);
-                        
+                        results.Add(exists);                        
                         if (!exists)
                         {
-                            filesNotFound.Add(file.FullName);
-                            results.Add(false);
+                            filesNotFound.Add(file?.FullName ?? "arquivo null");
                         }
                        
                     }

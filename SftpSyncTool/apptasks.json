@@ -4,10 +4,10 @@
   "FolderMaps": [   
     {  
       "Name": "Processando todos os arquivos da pasta 001",
-      "FolderPathOrigin": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO\\PROD\\001",
+      "FolderPathOrigin": "C:\\COLOCERAM\\RETORNO\\PROD\\001",
       "SFTPPathDestination": "SFTP:/system/RETORNOS/BANCO341/341_@Inspect_VAR/001/PROCESSAR",
-      "ProcessedFilesOnError": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\001\\ERRO",
-      "ProcessedFilesOnSuccess": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\001\\OK",
+      "ProcessedFilesOnError": "C:\\COLOCERAM\\RETORNO_SYNC\\001\\ERRO",
+      "ProcessedFilesOnSuccess": "C:\\COLOCERAM\\RETORNO_SYNC\\001\\OK",
       "EmailNotify": "daniel.silveira@colorobbia.com.br",
       "InspectLocation": "L00001(0059,0071)",
       "TasksMaps": [
@@ -41,10 +41,10 @@
     },
     {
       "Name": "Processando todos os arquivos da pasta 008",
-      "FolderPathOrigin": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO\\PROD\\008",
+      "FolderPathOrigin": "C:\\COLOCERAM\\RETORNO\\PROD\\008",
       "SFTPPathDestination": "SFTP:/system/RETORNOS/BANCO341/341_@Inspect_VAR/008/PROCESSAR",
-      "ProcessedFilesOnError": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\008\\ERRO",
-      "ProcessedFilesOnSuccess": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\008\\OK",
+      "ProcessedFilesOnError": "C:\\COLOCERAM\\RETORNO_SYNC\\008\\ERRO",
+      "ProcessedFilesOnSuccess": "C:\\COLOCERAM\\RETORNO_SYNC\\008\\OK",
       "EmailNotify": "daniel.silveira@colorobbia.com.br",
       "InspectLocation": "L00001(0059,0071)",
       "TasksMaps": [
@@ -78,10 +78,10 @@
     },
     {
       "Name": "Processando todos os arquivos da pasta 025",
-      "FolderPathOrigin": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO\\PROD\\025",
+      "FolderPathOrigin": "C:\\COLOCERAM\\RETORNO\\PROD\\025",
       "SFTPPathDestination": "SFTP:/system/RETORNOS/BANCO341/341_@Inspect_VAR/025/PROCESSAR",
-      "ProcessedFilesOnError": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\025\\ERRO",
-      "ProcessedFilesOnSuccess": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\025\\OK",
+      "ProcessedFilesOnError": "C:\\COLOCERAM\\RETORNO_SYNC\\025\\ERRO",
+      "ProcessedFilesOnSuccess": "C:\\COLOCERAM\\RETORNO_SYNC\\025\\OK",
       "EmailNotify": "daniel.silveira@colorobbia.com.br",
       "InspectLocation": "L00001(0059,0071)",
       "TasksMaps": [
@@ -115,10 +115,10 @@
     },
     {
       "Name": "Processando todos os arquivos da pasta 042",
-      "FolderPathOrigin": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO\\PROD\\042",
+      "FolderPathOrigin": "C:\\COLOCERAM\\RETORNO\\PROD\\042",
       "SFTPPathDestination": "SFTP:/system/RETORNOS/BANCO341/341_@Inspect_VAR/042/PROCESSAR",
-      "ProcessedFilesOnError": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\042\\ERRO",
-      "ProcessedFilesOnSuccess": "D:\\VANS\\ITAU\\v1.6.1_windows\\COLOCERAM\\RETORNO_SYNC\\042\\OK",
+      "ProcessedFilesOnError": "C:\\COLOCERAM\\RETORNO_SYNC\\042\\ERRO",
+      "ProcessedFilesOnSuccess": "C:\\COLOCERAM\\RETORNO_SYNC\\042\\OK",
       "EmailNotify": "daniel.silveira@colorobbia.com.br",
       "InspectLocation": "L00001(0059,0071)",
       "TasksMaps": [
