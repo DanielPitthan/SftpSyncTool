@@ -1,7 +1,21 @@
-namespace CopyToSFTPObserver
+Ôªønamespace CopyToSFTPObserver
 {
     public class AppSettings
     {
+        private string httpUrl = "http://localhost:8000/";//valor default
+        public string HTTP_URL
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(httpUrl))
+                    return "http://localhost:8000/";
+                return httpUrl;
+            }
+            set
+            {
+                httpUrl = value;
+            }
+        }
         public string EMAIL_FROM { get; set; }
         private string emailSenha = "";
         public string EMAIL_SENHA
@@ -21,7 +35,7 @@ namespace CopyToSFTPObserver
                 }
                 catch (FormatException)
                 {
-                    // Se n„o for base64 v·lido, retorna a string original
+                    // Se n√£o for base64 v√°lido, retorna a string original
                     return emailSenha;
                 }
                 catch (Exception)
@@ -59,7 +73,7 @@ namespace CopyToSFTPObserver
                 }
                 catch (FormatException)
                 {
-                    // Se n„o for base64 v·lido, retorna a string original
+                    // Se n√£o for base64 v√°lido, retorna a string original
                     return sFTPUrl;
                 }
                 catch (Exception)
@@ -91,7 +105,7 @@ namespace CopyToSFTPObserver
                 }
                 catch (FormatException)
                 {
-                    // Se n„o for base64 v·lido, retorna a string original
+                    // Se n√£o for base64 v√°lido, retorna a string original
                     return usuarioSFTP;
                 }
                 catch (Exception)
@@ -123,7 +137,7 @@ namespace CopyToSFTPObserver
                 }
                 catch (FormatException)
                 {
-                    // Se n„o for base64 v·lido, retorna a string original
+                    // Se n√£o for base64 v√°lido, retorna a string original
                     return senha;
                 }
                 catch (Exception)
@@ -140,9 +154,9 @@ namespace CopyToSFTPObserver
         public int Port { get; set; } = 22;
 
         /// <summary>
-        /// Valida se as configuraÁıes SFTP est„o corretas
+        /// Valida se as configura√ß√µes SFTP est√£o corretas
         /// </summary>
-        /// <returns>True se as configuraÁıes est„o v·lidas</returns>
+        /// <returns>True se as configura√ß√µes est√£o v√°lidas</returns>
         public bool IsValidSFTPConfiguration()
         {
             return !string.IsNullOrWhiteSpace(SFTPUrl) &&
@@ -152,7 +166,7 @@ namespace CopyToSFTPObserver
         }
 
         /// <summary>
-        /// ObtÈm uma descriÁ„o dos problemas de configuraÁ„o SFTP
+        /// Obt√©m uma descri√ß√£o dos problemas de configura√ß√£o SFTP
         /// </summary>
         /// <returns>Lista de problemas encontrados</returns>
         public List<string> GetSFTPConfigurationIssues()
@@ -160,16 +174,16 @@ namespace CopyToSFTPObserver
             var issues = new List<string>();
 
             if (string.IsNullOrWhiteSpace(SFTPUrl))
-                issues.Add("URL do SFTP n„o configurada ou inv·lida");
+                issues.Add("URL do SFTP n√£o configurada ou inv√°lida");
 
             if (string.IsNullOrWhiteSpace(UsuarioSFTP))
-                issues.Add("Usu·rio SFTP n„o configurado ou inv·lido");
+                issues.Add("Usu√°rio SFTP n√£o configurado ou inv√°lido");
 
             if (string.IsNullOrWhiteSpace(Senha))
-                issues.Add("Senha SFTP n„o configurada ou inv·lida");
+                issues.Add("Senha SFTP n√£o configurada ou inv√°lida");
 
             if (Port <= 0 || Port > 65535)
-                issues.Add($"Porta SFTP inv·lida: {Port}. Deve estar entre 1 e 65535");
+                issues.Add($"Porta SFTP inv√°lida: {Port}. Deve estar entre 1 e 65535");
 
             return issues;
         }

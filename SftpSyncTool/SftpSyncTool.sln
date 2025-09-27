@@ -20,6 +20,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{3A769CA5-4F71-4F74-AABB-A517B64DC685}"
 	ProjectSection(SolutionItems) = preProject
 		..\README.md = ..\README.md
+		UPDATES.MD = UPDATES.MD
 	EndProjectSection
 EndProject
 Global
