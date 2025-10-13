@@ -16,6 +16,8 @@ namespace CopyToSFTPObserver
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _appSettings = appSettings?.Value ?? throw new ArgumentNullException(nameof(appSettings));
             _url = _appSettings.HTTP_URL;//Environment.GetEnvironmentVariable("HTTP_URL") ?? "http://localhost:5050/";
+
+            //TODO : Adicionar o IP do host na URL se necessário
             _listener.Prefixes.Add(_url);
         }
 
