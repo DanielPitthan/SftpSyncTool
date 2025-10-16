@@ -268,7 +268,7 @@ namespace Infrastructure.Factorys
                             taskActions.Message += $"Aviso: Não foi possível verificar/criar diretório no SFTP: {ex.Message}\r\n";
                         }
 
-                        string remoteFilePath = Path.Combine(destinationPath, file.Name);
+                        string remoteFilePath = destinationPath + "/" + file.Name;
                         fs = File.OpenRead(file.FullName);
                         IAsyncResult? uploadResult = clientSFTP.BeginUploadFile(fs, remoteFilePath);
                         clientSFTP.EndUploadFile(uploadResult);

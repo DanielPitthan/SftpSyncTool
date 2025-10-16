@@ -257,7 +257,7 @@ namespace Infrastructure.Factorys
                             taskActions.Inspect_VAR = content.TrimStart('0').Trim();
                             remoteFilePath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
                         }
-                        string destinationFile = Path.Combine(remoteFilePath, file.Name);
+                        string destinationFile = remoteFilePath + "/" + file.Name;
                         var exists = clientSFTP.Exists(destinationFile);
                         results.Add(exists);                        
                         if (!exists)

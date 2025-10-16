@@ -5,3 +5,5 @@
 /Domain/obj/Release/net9.0/Domain.AssemblyInfoInputs.cache
 /Domain/obj/*.*
 /SftpSyncTool/apptasks.json
+/Domain/bin/Release/net9.0/*.dll
+/Domain/bin/Debug/net9.0/*.cache
