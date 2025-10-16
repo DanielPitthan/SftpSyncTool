@@ -256,7 +256,7 @@ namespace CopyToSFTPObserver
                         task.InspectPartOfFile = inspectPartOfFile;
 
                         var result = task.Check();
-                        goToNextTask = result?.Success ?? false;
+                        goToNextTask = true;
 
                         // Adiciona arquivos com erro ao relatório
                         if (result?.FilesProcessedWitError != null)
