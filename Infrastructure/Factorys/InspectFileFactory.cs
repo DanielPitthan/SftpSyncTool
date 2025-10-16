@@ -38,8 +38,10 @@ namespace Infrastructure.Factorys
             {
                 return "";
             }
+            inicio--;
 
-            string? content = textLines[linhaAInspecionar].Substring(inicio, fim- inicio) ?? string.Empty;
+
+            string? content = textLines[linhaAInspecionar-1].Substring(inicio, fim- inicio) ?? string.Empty;
 
             return content;
         }

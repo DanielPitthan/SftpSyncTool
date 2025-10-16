@@ -88,7 +88,7 @@ namespace Infrastructure.Factorys
             if (files == null)
             {
                 taskActions.Success = false;
-                taskActions.Message = "Lista de arquivos é null.\n";
+                taskActions.Message = "Lista de arquivos é null.";
                 return taskActions;
             }
 
@@ -96,12 +96,13 @@ namespace Infrastructure.Factorys
             if (!fileList.Any())
             {
                 taskActions.Success = true;
-                taskActions.Message = "Nenhum arquivo para copiar.\n";
+                taskActions.Message = "Nenhum arquivo para copiar.";
                 return taskActions;
             }
 
             try
             {
+                string destinationPath = taskActions.Argument2;
 
                 int copiedFiles = 0;
                 foreach (var file in fileList)
@@ -112,7 +113,6 @@ namespace Infrastructure.Factorys
                         continue;
                     }
 
-
                     try
                     {
                         if (taskActions.ShouldInspect)
@@ -120,54 +120,49 @@ namespace Infrastructure.Factorys
                             var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
                             //remover os zeros as esquerda se houver
                             taskActions.Inspect_VAR = content.TrimStart('0').Trim();
-                            taskActions.Argument2 = taskActions.Argument2.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
-                        }
-                        // Verifica se o diretório de destino existe, se não, cria
-                        if (!Directory.Exists(taskActions.Argument2))
-                        {
-                            Directory.CreateDirectory(taskActions.Argument2);
+                            destinationPath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
                         }
 
-                        string destinationFile = Path.Combine(taskActions.Argument2, file.Name);
-
-                        // Verifica se o arquivo já existe e se é diferente
-                        if (File.Exists(destinationFile))
+                        // Verifica se o diretório de destino existe, se não, tenta criar
+                        try
                         {
-                            var sourceSize = file.Length;
-                            var destSize = new FileInfo(destinationFile).Length;
-
-                            if (sourceSize == destSize)
+                            if (!Directory.Exists(destinationPath))
                             {
-                                taskActions.Message += $"Arquivo já existe com mesmo tamanho, pulando: {file.Name}\r\n";
-                                copiedFiles++;
-                                continue;
+                                Directory.CreateDirectory(destinationPath);
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            taskActions.Message += $"Aviso: Não foi possível verificar/criar diretório local: {ex.Message}\r\n";
+                        }
 
-                        File.Copy(file.FullName, destinationFile, overwrite: true);
+                        string localFilePath = Path.Combine(destinationPath, file.Name);
+
+                        File.Copy(file.FullName, localFilePath, overwrite: true);
                         taskActions.Message += $"Arquivo copiado: {file.Name}\r\n";
 
                         taskActions.FilesProcessed.Add(file.Name);
+
                         copiedFiles++;
                     }
                     catch (IOException ex)
                     {
                         taskActions.Message += $"Erro de I/O ao copiar {file.Name}: {ex.Message}\r\n";
                     }
-                    catch (UnauthorizedAccessException ex)
+                    catch (Exception ex)
                     {
-                        taskActions.Message += $"Acesso negado ao copiar {file.Name}: {ex.Message}\r\n";
+                        taskActions.Message += $"Erro ao copiar o arquivo {file.Name}: {ex.Message}\r\n";
                     }
                 }
 
                 taskActions.Success = copiedFiles > 0;
                 if (taskActions.Success)
                 {
-                    taskActions.Message += $"Total de {copiedFiles} arquivo(s) processado(s) com sucesso para o diretório local.\r\n";
+                    taskActions.Message += $"Total de {copiedFiles} arquivo(s) copiado(s) com sucesso para o diretório local.";
                 }
                 else
                 {
-                    taskActions.Message += "Nenhum arquivo foi copiado com sucesso.";
+                    taskActions.Message += "Nenhum arquivo foi copiado com sucesso para o diretório local.";
                 }
             }
             catch (Exception ex)
@@ -273,10 +268,14 @@ namespace Infrastructure.Factorys
                             taskActions.Message += $"Aviso: Não foi possível verificar/criar diretório no SFTP: {ex.Message}\r\n";
                         }
 
-                        string remoteFilePath = destinationPath + "/" + file.Name;
-
+                        string remoteFilePath = Path.Combine(destinationPath, file.Name);
                         fs = File.OpenRead(file.FullName);
-                        clientSFTP.UploadFile(fs, remoteFilePath);
+                        IAsyncResult? uploadResult = clientSFTP.BeginUploadFile(fs, remoteFilePath);
+                        clientSFTP.EndUploadFile(uploadResult);
+
+                        //clientSFTP.UploadFile(fs, remoteFilePath);
+
+
                         taskActions.Message += $"Arquivo copiado: {file.Name}\r\n";
 
                         taskActions.FilesProcessed.Add(file.Name);

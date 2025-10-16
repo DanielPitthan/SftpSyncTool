@@ -13,7 +13,6 @@ namespace CopyToSFTPObserver
         private readonly ILogger<Worker> _logger;
         private readonly AppSettings _appSettings;
         private readonly AppTaskMapperConfigurator _appTaskMapperConfigurator;
-        private int _executionCount = 0;
 
         public Worker(ILogger<Worker> logger,
             IOptions<AppSettings> appSettings,
@@ -185,17 +184,14 @@ namespace CopyToSFTPObserver
             bool inspectOnCopy = false;
             string inspectPartOfFile = string.Empty;
             bool goToNextTask = true;
-            bool sholdNotify = false;
 
+            // Cria o relatório de execução para o e-mail
+            var report = new TaskExecutionReport
+            {
+                FolderName = folderMap.Name ?? "N/A",
+                ExecutionDate = DateTime.Now
+            };
 
-            string emailText = @"<!DOCTYPE html>
-                                <html lang=""en"">
-                                <head>
-                                    <meta charset=""UTF-8"">
-                                    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-                                    <title>Document</title>
-                                </head>
-                                <body>";
             //Executa as tarefas 
             foreach (TaskActions task in tasksActions)
             {
@@ -218,7 +214,7 @@ namespace CopyToSFTPObserver
                         inspectOnCopy = true;
                         inspectPartOfFile = task.Argument1 ?? string.Empty;
                     }
-                    
+
 
                     //Faz a cópia para o SFTP
                     if (task.Action == TypeOfTasks.copy && goToNextTask)
@@ -228,12 +224,22 @@ namespace CopyToSFTPObserver
 
                         TaskActions? result = task.ExecuteCopy();
                         goToNextTask = result?.Success ?? false;
-                        
-                        
-                        sholdNotify = result.FilesProcessed.Count>0;
 
+                        // Adiciona arquivos processados ao relatório
+                        if (result?.FilesProcessed != null)
+                        {
+                            report.FilesProcessed.AddRange(result.FilesProcessed);
+                        }
 
-                        emailText += result?.Message + "<br />" ?? "Resultado da cópia não disponível  <br />";
+                        // Adiciona detalhe de execução
+                        report.ExecutionDetails.Add(new TaskExecutionDetail
+                        {
+                            TaskType = "Cópia para SFTP",
+                            Message = result?.Message ?? "Resultado da cópia não disponível",
+                            Success = result?.Success ?? false,
+                            Timestamp = DateTime.Now
+                        });
+
                         _logger.LogInformation(result?.Message ?? "Resultado da cópia não disponível");
                     }
 
@@ -251,7 +257,22 @@ namespace CopyToSFTPObserver
 
                         var result = task.Check();
                         goToNextTask = result?.Success ?? false;
-                        emailText += result?.Message + "<br />" ?? "Resultado da verificação não disponível <br />";
+
+                        // Adiciona arquivos com erro ao relatório
+                        if (result?.FilesProcessedWitError != null)
+                        {
+                            report.FilesWithError.AddRange(result.FilesProcessedWitError);
+                        }
+
+                        // Adiciona detalhe de execução
+                        report.ExecutionDetails.Add(new TaskExecutionDetail
+                        {
+                            TaskType = "Verificação no SFTP",
+                            Message = result?.Message ?? "Resultado da verificação não disponível",
+                            Success = result?.Success ?? false,
+                            Timestamp = DateTime.Now
+                        });
+
                         _logger.LogInformation(result?.Message ?? "Resultado da verificação não disponível");
                     }
 
@@ -266,7 +287,16 @@ namespace CopyToSFTPObserver
                     {
                         var result = task.Move();
                         goToNextTask = result?.Success ?? false;
-                        emailText += result?.Message + "<br />" ?? "Resultado da movimentação não disponível  <br />";
+
+                        // Adiciona detalhe de execução
+                        report.ExecutionDetails.Add(new TaskExecutionDetail
+                        {
+                            TaskType = "Movimentação de arquivos",
+                            Message = result?.Message ?? "Resultado da movimentação não disponível",
+                            Success = result?.Success ?? false,
+                            Timestamp = DateTime.Now
+                        });
+
                         _logger.LogInformation(result?.Message ?? "Resultado da movimentação não disponível");
                     }
 
@@ -281,7 +311,16 @@ namespace CopyToSFTPObserver
                     {
                         var result = DeleteFileFactory.Execute(task, folderMap);
                         goToNextTask = result?.Success ?? false;
-                        emailText += result?.Message + "<br />" ?? "Resultado da exclusão não disponível <br />";
+
+                        // Adiciona detalhe de execução
+                        report.ExecutionDetails.Add(new TaskExecutionDetail
+                        {
+                            TaskType = "Exclusão de arquivos",
+                            Message = result?.Message ?? "Resultado da exclusão não disponível",
+                            Success = result?.Success ?? false,
+                            Timestamp = DateTime.Now
+                        });
+
                         _logger.LogInformation(result?.Message ?? "Resultado da exclusão não disponível");
                     }
 
@@ -292,12 +331,18 @@ namespace CopyToSFTPObserver
                     }
 
 
-                    if (task.Action == TypeOfTasks.notify && goToNextTask && sholdNotify)
+                    if (task.Action == TypeOfTasks.notify && goToNextTask && report.HasProcessedFiles)
                     {
-                        emailText += @"</body>
-                                        </html>";
-                        Email email = new Email(folderMap.EmailNotify, $"Notificação de tarefa concluída: {folderMap.Name}",
-                            $"Log de execução da tarefa\r\n {emailText}");
+                        // Usa o builder para gerar o HTML do e-mail
+                        var emailBuilder = new EmailNotificationBuilder(report);
+                        string emailHtml = emailBuilder.BuildHtmlBody();
+
+                        Email email = new Email(
+                            folderMap.EmailNotify,
+                            $"Notificação de tarefa concluída: {folderMap.Name}",
+                            emailHtml
+                        );
+
                         email.Send();
                         _logger.LogInformation($"Notificação enviada para: {folderMap.EmailNotify}");
                     }

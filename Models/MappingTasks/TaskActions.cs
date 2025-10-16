@@ -81,5 +81,6 @@ namespace Models.MappingTasks
         public string Argument4 { get; set; }
         public string Argument5 { get; set; }
         public IList<string> FilesProcessed { get; set; } = new List<string>();
+        public IList<string> FilesProcessedWitError { get; set; } = new List<string>();
     }
 }

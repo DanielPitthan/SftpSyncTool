@@ -106,6 +106,8 @@ namespace Infrastructure.Factorys
                 List<string> filesNotFound = new List<string>();
                 List<string> filesSizesDifferent = new List<string>();
 
+                string destinationPath = taskActions.Argument2;
+
                 foreach (var file in fileList)
                 {
                     if (file == null || !file.Exists)
@@ -115,47 +117,45 @@ namespace Infrastructure.Factorys
                         continue;
                     }
 
-                    string destinationFile = Path.Combine(taskActions.Argument2, file.Name);
-                    bool exists = File.Exists(destinationFile);
-                    
-                    if (!exists)
+                    try
                     {
-                        filesNotFound.Add(file.FullName);
+                        string localFilePath = destinationPath;
+
+                        if (taskActions.ShouldInspect)
+                        {
+                            var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
+                            //remover os zeros as esquerda se houver
+                            taskActions.Inspect_VAR = content.TrimStart('0').Trim();
+                            localFilePath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
+                        }
+
+                        string destinationFile = Path.Combine(localFilePath, file.Name);
+                        var exists = File.Exists(destinationFile);
+                        results.Add(exists);
+                        
+                        if (!exists)
+                        {
+                            filesNotFound.Add(file?.FullName ?? "arquivo null");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        taskActions.Message += $"Erro ao verificar arquivo {file.Name} no diretório local: {ex.Message}\r\n";
                         results.Add(false);
                     }
-                    else
-                    {
-                        // Verifica também se o tamanho é o mesmo
-                        try
-                        {
-                            var destFileInfo = new FileInfo(destinationFile);
-                            if (file.Length != destFileInfo.Length)
-                            {
-                                filesSizesDifferent.Add($"{file.Name} (origem: {file.Length} bytes, destino: {destFileInfo.Length} bytes)");
-                                results.Add(false);
-                            }
-                            else
-                            {
-                                results.Add(true);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            taskActions.Message += $"Erro ao verificar tamanho do arquivo {file.Name}: {ex.Message}\r\n";
-                            results.Add(false);
-                        }
-                    }
                 }
+
+                taskActions.FilesProcessedWitError = filesNotFound;
 
                 taskActions.Success = results.All(r => r == true);
                 
                 if (taskActions.Success)
                 {
-                    taskActions.Message = $"Todos os {fileList.Count} arquivo(s) existem no diretório local com tamanho correto.";
+                    taskActions.Message += $"Todos os {fileList.Count} arquivo(s) foram verificados com sucesso no diretório local.";
                 }
                 else
                 {
-                    taskActions.Message = "Verificação falhou:\r\n";
+                    taskActions.Message += "Verificação local falhou:\r\n";
                     if (filesNotFound.Any())
                     {
                         taskActions.Message += $"Arquivos não encontrados: {string.Join(", ", filesNotFound)}\r\n";
@@ -257,8 +257,8 @@ namespace Infrastructure.Factorys
                             taskActions.Inspect_VAR = content.TrimStart('0').Trim();
                             remoteFilePath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
                         }
-
-                        var exists = clientSFTP.Exists(remoteFilePath);
+                        string destinationFile = Path.Combine(remoteFilePath, file.Name);
+                        var exists = clientSFTP.Exists(destinationFile);
                         results.Add(exists);                        
                         if (!exists)
                         {
@@ -272,6 +272,8 @@ namespace Infrastructure.Factorys
                         results.Add(false);
                     }
                 }
+
+                taskActions.FilesProcessedWitError = filesNotFound;
 
                 taskActions.Success = results.All(r => r == true);
                 
