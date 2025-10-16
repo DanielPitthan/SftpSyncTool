@@ -164,6 +164,7 @@ namespace Infrastructure.Email
             sb.AppendLine("<div style=\"background:#f8f9fa;padding:15px;border-radius:0 0 8px 8px;text-align:center;border-top:1px solid #dee2e6\">");
             sb.AppendLine("<p style=\"margin:0;font-size:12px;color:#6c757d\">Este é um e-mail automático. Por favor, não responda.</p>");
             sb.AppendLine("<p style=\"margin:5px 0 0;font-size:11px;color:#adb5bd\">SFTP Sync Tool - Monitoramento de Transferências</p>");
+            sb.AppendLine("<p style=\"margin:5px 0 0;font-size:11px;color:#adb5bd\">Github: https://github.com/DanielPitthan/SftpSyncTool</p>");
             sb.AppendLine("</div>");
         }
     }
