@@ -2,11 +2,16 @@
 using Models.Configurations;
 using Models.MappingTasks;
 using Renci.SshNet;
+using System.Collections.Concurrent;
 
 namespace Infrastructure.Factorys
 {
     public static class CheckCopyResult
     {
+        // PROTEÇÃO CONTRA CONCORRÊNCIA: Semáforo por arquivo para evitar race conditions
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = 
+            new ConcurrentDictionary<string, SemaphoreSlim>();
+
         /// <summary>
         /// Faz uma verificação se os arquivos entre origem e destino 
         /// Utiliza os argumentos 1 e 2 da TaskActions para determinar o caminho de origem e destino
@@ -78,7 +83,7 @@ namespace Infrastructure.Factorys
         }
 
         /// <summary>
-        /// Verifica se os arquivos existem no diretório local
+        /// Verifica se os arquivos existem no diretório local com proteção contra concorrência
         /// </summary>
         /// <param name="files">Lista de arquivos a serem verificados</param>
         /// <param name="taskActions">Ações da tarefa</param>
@@ -106,41 +111,63 @@ namespace Infrastructure.Factorys
                 List<string> filesNotFound = new List<string>();
                 List<string> filesSizesDifferent = new List<string>();
 
-                string destinationPath = taskActions.Argument2;
-
                 foreach (var file in fileList)
                 {
                     if (file == null || !file.Exists)
                     {
                         filesNotFound.Add(file?.FullName ?? "arquivo null");
                         results.Add(false);
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Arquivo de origem não existe: {file?.FullName ?? "null"}\r\n";
                         continue;
                     }
 
+                    // PROTEÇÃO: Obter ou criar um semáforo único para este arquivo
+                    var fileLock = _fileLocks.GetOrAdd(file.FullName, _ => new SemaphoreSlim(1, 1));
+
                     try
                     {
-                        string localFilePath = destinationPath;
+                        // EXCLUSÃO: Adquirir lock exclusivo para este arquivo
+                        fileLock.Wait();
 
-                        if (taskActions.ShouldInspect)
+                        try
                         {
-                            var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
-                            //remover os zeros as esquerda se houver
-                            taskActions.Inspect_VAR = content.TrimStart('0').Trim();
-                            localFilePath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
+                            // ISOLAMENTO: Contexto isolado por arquivo para evitar race condition em Inspect_VAR
+                            string inspectVar = string.Empty;
+                            string localFilePath = taskActions.Argument2;
+
+                            if (taskActions.ShouldInspect)
+                            {
+                                var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
+                                // Remover os zeros à esquerda se houver
+                                inspectVar = content.TrimStart('0').Trim();
+                                taskActions.Inspect_VAR = inspectVar;
+                                localFilePath = taskActions.Argument2.Replace("@Inspect_VAR", inspectVar);
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INSPECT] Arquivo: {file.Name} | Valor extraído: {inspectVar}\r\n";
+                            }
+
+                            string destinationFile = Path.Combine(localFilePath, file.Name);
+                            var exists = File.Exists(destinationFile);
+                            results.Add(exists);
+                            
+                            if (!exists)
+                            {
+                                filesNotFound.Add(file?.FullName ?? "arquivo null");
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [NÃO-ENCONTRADO] {file.Name} não existe em: {destinationFile}\r\n";
+                            }
+                            else
+                            {
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [VERIFICADO] {file.Name} existe em: {destinationFile}\r\n";
+                            }
                         }
-
-                        string destinationFile = Path.Combine(localFilePath, file.Name);
-                        var exists = File.Exists(destinationFile);
-                        results.Add(exists);
-                        
-                        if (!exists)
+                        finally
                         {
-                            filesNotFound.Add(file?.FullName ?? "arquivo null");
+                            // LIBERAÇÃO: Liberar o lock para este arquivo
+                            fileLock.Release();
                         }
                     }
                     catch (Exception ex)
                     {
-                        taskActions.Message += $"Erro ao verificar arquivo {file.Name} no diretório local: {ex.Message}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro ao verificar arquivo {file.Name} no diretório local: {ex.Message}\r\n";
                         results.Add(false);
                     }
                 }
@@ -151,32 +178,32 @@ namespace Infrastructure.Factorys
                 
                 if (taskActions.Success)
                 {
-                    taskActions.Message += $"Todos os {fileList.Count} arquivo(s) foram verificados com sucesso no diretório local.";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Todos os {fileList.Count} arquivo(s) foram verificados com sucesso no diretório local.";
                 }
                 else
                 {
-                    taskActions.Message += "Verificação local falhou:\r\n";
+                    taskActions.Message += "\r\nVerificação local falhou:\r\n";
                     if (filesNotFound.Any())
                     {
-                        taskActions.Message += $"Arquivos não encontrados: {string.Join(", ", filesNotFound)}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Arquivos não encontrados ({filesNotFound.Count}): {string.Join(", ", filesNotFound)}\r\n";
                     }
                     if (filesSizesDifferent.Any())
                     {
-                        taskActions.Message += $"Arquivos com tamanho diferente: {string.Join(", ", filesSizesDifferent)}";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Arquivos com tamanho diferente ({filesSizesDifferent.Count}): {string.Join(", ", filesSizesDifferent)}";
                     }
                 }
             }
             catch (Exception ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro ao verificar arquivos no diretório local: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO CRÍTICO] Erro ao verificar arquivos no diretório local: {ex.Message}";
             }
 
             return taskActions;
         }
 
         /// <summary>
-        /// Verifica se os arquivos existem no servidor SFTP
+        /// Verifica se os arquivos existem no servidor SFTP com proteção contra concorrência
         /// </summary>
         /// <param name="files">Lista de arquivos a serem verificados</param>
         /// <param name="taskActions">Ações da tarefa</param>
@@ -243,32 +270,57 @@ namespace Infrastructure.Factorys
                     {
                         filesNotFound.Add(file?.FullName ?? "arquivo null");
                         results.Add(false);
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Arquivo de origem não existe: {file?.FullName ?? "null"}\r\n";
                         continue;
                     }
 
+                    // PROTEÇÃO: Obter ou criar um semáforo único para este arquivo
+                    var fileLock = _fileLocks.GetOrAdd(file.FullName, _ => new SemaphoreSlim(1, 1));
+
                     try
                     {
-                        string remoteFilePath = destinationPath + "/" + file.Name;
+                        // EXCLUSÃO: Adquirir lock exclusivo para este arquivo
+                        fileLock.Wait();
 
-                        if (taskActions.ShouldInspect)
+                        try
                         {
-                            var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
-                            //remover os zeros as esquerda se houver
-                            taskActions.Inspect_VAR = content.TrimStart('0').Trim();
-                            remoteFilePath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
+                            // ISOLAMENTO: Contexto isolado por arquivo para evitar race condition em Inspect_VAR
+                            string inspectVar = string.Empty;
+                            string remoteDestinationPath = destinationPath;
+
+                            if (taskActions.ShouldInspect)
+                            {
+                                var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
+                                // Remover os zeros à esquerda se houver
+                                inspectVar = content.TrimStart('0').Trim();
+                                taskActions.Inspect_VAR = inspectVar;
+                                remoteDestinationPath = destinationPath.Replace("@Inspect_VAR", inspectVar);
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INSPECT] Arquivo: {file.Name} | Valor extraído: {inspectVar}\r\n";
+                            }
+                            
+                            string destinationFile = remoteDestinationPath + "/" + file.Name;
+                            var exists = clientSFTP.Exists(destinationFile);
+                            results.Add(exists);                        
+                            
+                            if (!exists)
+                            {
+                                filesNotFound.Add(file?.FullName ?? "arquivo null");
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [NÃO-ENCONTRADO] {file.Name} não existe em: {destinationFile}\r\n";
+                            }
+                            else
+                            {
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [VERIFICADO] {file.Name} existe em: {destinationFile}\r\n";
+                            }
                         }
-                        string destinationFile = remoteFilePath + "/" + file.Name;
-                        var exists = clientSFTP.Exists(destinationFile);
-                        results.Add(exists);                        
-                        if (!exists)
+                        finally
                         {
-                            filesNotFound.Add(file?.FullName ?? "arquivo null");
+                            // LIBERAÇÃO: Liberar o lock para este arquivo
+                            fileLock.Release();
                         }
-                       
                     }
                     catch (Exception ex)
                     {
-                        taskActions.Message += $"Erro ao verificar arquivo {file.Name} no SFTP: {ex.Message}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro ao verificar arquivo {file.Name} no SFTP: {ex.Message}\r\n";
                         results.Add(false);
                     }
                 }
@@ -279,40 +331,40 @@ namespace Infrastructure.Factorys
                 
                 if (taskActions.Success)
                 {
-                    taskActions.Message += $"Todos os {fileList.Count} arquivo(s) foram verificados com sucesso no SFTP.";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Todos os {fileList.Count} arquivo(s) foram verificados com sucesso no SFTP.";
                 }
                 else
                 {
-                    taskActions.Message += "Verificação SFTP falhou:\r\n";
+                    taskActions.Message += "\r\nVerificação SFTP falhou:\r\n";
                     if (filesNotFound.Any())
                     {
-                        taskActions.Message += $"Arquivos não encontrados: {string.Join(", ", filesNotFound)}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Arquivos não encontrados ({filesNotFound.Count}): {string.Join(", ", filesNotFound)}\r\n";
                     }
                     if (filesSizesDifferent.Any())
                     {
-                        taskActions.Message += $"Arquivos com tamanho diferente: {string.Join(", ", filesSizesDifferent)}";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Arquivos com tamanho diferente ({filesSizesDifferent.Count}): {string.Join(", ", filesSizesDifferent)}";
                     }
                 }
             }
             catch (Renci.SshNet.Common.SshConnectionException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro de conexão SFTP durante verificação: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro de conexão SFTP durante verificação: {ex.Message}";
             }
             catch (Renci.SshNet.Common.SshAuthenticationException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro de autenticação SFTP durante verificação: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro de autenticação SFTP durante verificação: {ex.Message}";
             }
             catch (TimeoutException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Timeout na conexão SFTP durante verificação: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Timeout na conexão SFTP durante verificação: {ex.Message}";
             }
             catch (Exception ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro ao verificar arquivos no SFTP: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO CRÍTICO] Erro ao verificar arquivos no SFTP: {ex.Message}";
             }
             finally
             {
@@ -324,7 +376,7 @@ namespace Infrastructure.Factorys
                 catch (Exception ex)
                 {
                     // Log mas não falha a operação por isso
-                    taskActions.Message += $"\r\nAviso: Erro ao fechar conexão SFTP: {ex.Message}";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [AVISO] Erro ao fechar conexão SFTP: {ex.Message}";
                 }
             }
 

@@ -2,11 +2,21 @@
 using Models.Configurations;
 using Models.MappingTasks;
 using Renci.SshNet;
+using System.Collections.Concurrent;
 
 namespace Infrastructure.Factorys
 {
     public static class CopyToDestination
     {
+        // PROTEÇÃO CONTRA CONCORRÊNCIA: Semáforo por arquivo para evitar race conditions
+        // Garante que cada arquivo seja processado exclusivamente por apenas uma thread por vez
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = 
+            new ConcurrentDictionary<string, SemaphoreSlim>();
+
+        // RETRY CONFIGURATION: Constantes para política de retry automático
+        private const int MaxRetries = 3;
+        private const int InitialDelayMs = 500;
+
         /// <summary>
         /// Executa a cópia de arquivos da Origem para o Destino, pode ser um SFTP ou drive local 
         /// Utiliza os argumentos 1 e 2 da TaskActions para determinar o caminho de origem e destino
@@ -78,7 +88,7 @@ namespace Infrastructure.Factorys
         }
 
         /// <summary>
-        /// Copia arquivos para um diretório local
+        /// Copia arquivos para um diretório local com proteção contra concorrência
         /// </summary>
         /// <param name="files">Lista de arquivos a serem copiados</param>
         /// <param name="taskActions">Ações da tarefa</param>
@@ -102,80 +112,105 @@ namespace Infrastructure.Factorys
 
             try
             {
-                string destinationPath = taskActions.Argument2;
-
                 int copiedFiles = 0;
+                int failedFiles = 0;
+
                 foreach (var file in fileList)
                 {
                     if (file == null || !file.Exists)
                     {
-                        taskActions.Message += $"Arquivo não existe ou é inválido: {file?.FullName ?? "null"}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Arquivo não existe ou é inválido: {file?.FullName ?? "null"}\r\n";
+                        failedFiles++;
                         continue;
                     }
 
+                    // PROTEÇÃO: Obter ou criar um semáforo único para este arquivo
+                    // Isto garante que múltiplas threads não corrupam dados do mesmo arquivo
+                    var fileLock = _fileLocks.GetOrAdd(file.FullName, _ => new SemaphoreSlim(1, 1));
+
                     try
                     {
-                        if (taskActions.ShouldInspect)
-                        {
-                            var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
-                            //remover os zeros as esquerda se houver
-                            taskActions.Inspect_VAR = content.TrimStart('0').Trim();
-                            destinationPath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
-                        }
+                        // EXCLUSÃO: Adquirir lock exclusivo para este arquivo
+                        fileLock.Wait();
 
-                        // Verifica se o diretório de destino existe, se não, tenta criar
                         try
                         {
-                            if (!Directory.Exists(destinationPath))
+                            // ISOLAMENTO: Contexto isolado por arquivo para evitar race condition em Inspect_VAR
+                            // Cada arquivo tem seu próprio escopo de variáveis, não compartilhadas
+                            string inspectVar = string.Empty;
+                            string destinationPath = taskActions.Argument2;
+
+                            if (taskActions.ShouldInspect)
                             {
-                                Directory.CreateDirectory(destinationPath);
+                                var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
+                                // Remover os zeros à esquerda se houver
+                                inspectVar = content.TrimStart('0').Trim();
+                                taskActions.Inspect_VAR = inspectVar;
+                                destinationPath = destinationPath.Replace("@Inspect_VAR", inspectVar);
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INSPECT] Arquivo: {file.Name} | Valor extraído: {inspectVar}\r\n";
                             }
+
+                            // Verifica se o diretório de destino existe, se não, tenta criar
+                            try
+                            {
+                                if (!Directory.Exists(destinationPath))
+                                {
+                                    Directory.CreateDirectory(destinationPath);
+                                    taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Diretório criado: {destinationPath}\r\n";
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [AVISO] Não foi possível verificar/criar diretório local: {ex.Message}\r\n";
+                            }
+
+                            string localFilePath = Path.Combine(destinationPath, file.Name);
+
+                            File.Copy(file.FullName, localFilePath, overwrite: true);
+                            taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [SUCESSO] Arquivo copiado para: {localFilePath}\r\n";
+
+                            taskActions.FilesProcessed.Add(file.Name);
+                            copiedFiles++;
                         }
-                        catch (Exception ex)
+                        finally
                         {
-                            taskActions.Message += $"Aviso: Não foi possível verificar/criar diretório local: {ex.Message}\r\n";
+                            // LIBERAÇÃO: Liberar o lock para este arquivo
+                            fileLock.Release();
                         }
-
-                        string localFilePath = Path.Combine(destinationPath, file.Name);
-
-                        File.Copy(file.FullName, localFilePath, overwrite: true);
-                        taskActions.Message += $"Arquivo copiado: {file.Name}\r\n";
-
-                        taskActions.FilesProcessed.Add(file.Name);
-
-                        copiedFiles++;
                     }
                     catch (IOException ex)
                     {
-                        taskActions.Message += $"Erro de I/O ao copiar {file.Name}: {ex.Message}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] I/O ao copiar {file.Name}: {ex.Message}\r\n";
+                        failedFiles++;
                     }
                     catch (Exception ex)
                     {
-                        taskActions.Message += $"Erro ao copiar o arquivo {file.Name}: {ex.Message}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro ao copiar o arquivo {file.Name}: {ex.Message}\r\n";
+                        failedFiles++;
                     }
                 }
 
                 taskActions.Success = copiedFiles > 0;
                 if (taskActions.Success)
                 {
-                    taskActions.Message += $"Total de {copiedFiles} arquivo(s) copiado(s) com sucesso para o diretório local.";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Total de {copiedFiles} arquivo(s) copiado(s) com sucesso para o diretório local. Falhas: {failedFiles}";
                 }
                 else
                 {
-                    taskActions.Message += "Nenhum arquivo foi copiado com sucesso para o diretório local.";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Nenhum arquivo foi copiado com sucesso para o diretório local. Falhas: {failedFiles}";
                 }
             }
             catch (Exception ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro ao copiar arquivos para o diretório local: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO CRÍTICO] Erro ao copiar arquivos para o diretório local: {ex.Message}";
             }
 
             return taskActions;
         }
 
         /// <summary>
-        /// Copia arquivos para o servidor SFTP
+        /// Copia arquivos para o servidor SFTP com proteção contra concorrência e retry automático
         /// </summary>
         /// <param name="files">Lista de arquivos a serem copiados</param>
         /// <param name="taskActions">Ações da tarefa</param>
@@ -230,101 +265,120 @@ namespace Infrastructure.Factorys
                     return taskActions;
                 }
 
-                string destinationPath = taskActions.Argument2.Replace("SFTP:", "");
-
-
-
                 int copiedFiles = 0;
+                int failedFiles = 0;
+
                 foreach (var file in fileList)
                 {
                     if (file == null || !file.Exists)
                     {
-                        taskActions.Message += $"Arquivo não existe ou é inválido: {file?.FullName ?? "null"}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Arquivo não existe ou é inválido: {file?.FullName ?? "null"}\r\n";
+                        failedFiles++;
                         continue;
                     }
 
-                    FileStream? fs = null;
+                    // PROTEÇÃO: Obter ou criar um semáforo único para este arquivo
+                    var fileLock = _fileLocks.GetOrAdd(file.FullName, _ => new SemaphoreSlim(1, 1));
+
                     try
                     {
-                        if (taskActions.ShouldInspect)
-                        {
-                            var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
-                            //remover os zeros as esquerda se houver
-                            taskActions.Inspect_VAR = content.TrimStart('0').Trim();
-                            destinationPath = destinationPath.Replace("@Inspect_VAR", taskActions.Inspect_VAR);
-                        }
+                        // EXCLUSÃO: Adquirir lock exclusivo para este arquivo
+                        fileLock.Wait();
 
-                        // Verifica se o diretório existe no SFTP, se não, tenta criar
                         try
                         {
-                            if (!clientSFTP.Exists(destinationPath))
+                            // ISOLAMENTO: Contexto isolado por arquivo para evitar race condition em Inspect_VAR
+                            string inspectVar = string.Empty;
+                            string destinationPath = taskActions.Argument2.Replace("SFTP:", "");
+
+                            if (taskActions.ShouldInspect)
                             {
-                                // Tenta criar o diretório recursivamente
-                                CreateSftpDirectory(clientSFTP, destinationPath);
+                                var content = InspectFileFactory.Inspect(file.FullName, taskActions.InspectPartOfFile);
+                                // Remover os zeros à esquerda se houver
+                                inspectVar = content.TrimStart('0').Trim();
+                                taskActions.Inspect_VAR = inspectVar;
+                                destinationPath = destinationPath.Replace("@Inspect_VAR", inspectVar);
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INSPECT] Arquivo: {file.Name} | Valor extraído: {inspectVar}\r\n";
+                            }
+
+                            // Verifica se o diretório existe no SFTP, se não, tenta criar
+                            try
+                            {
+                                if (!clientSFTP.Exists(destinationPath))
+                                {
+                                    // Tenta criar o diretório recursivamente
+                                    CreateSftpDirectory(clientSFTP, destinationPath);
+                                    taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Diretório criado no SFTP: {destinationPath}\r\n";
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [AVISO] Não foi possível verificar/criar diretório no SFTP: {ex.Message}\r\n";
+                            }
+
+                            string remoteFilePath = destinationPath + "/" + file.Name;
+
+                            // RETRY: Executar upload com retry automático e backoff exponencial
+                            bool uploadSuccess = ExecuteSftpUploadWithRetry(clientSFTP, file, remoteFilePath, taskActions);
+
+                            if (uploadSuccess)
+                            {
+                                taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [SUCESSO] Arquivo enviado para SFTP: {remoteFilePath}\r\n";
+                                taskActions.FilesProcessed.Add(file.Name);
+                                copiedFiles++;
+                            }
+                            else
+                            {
+                                failedFiles++;
                             }
                         }
-                        catch (Exception ex)
+                        finally
                         {
-                            taskActions.Message += $"Aviso: Não foi possível verificar/criar diretório no SFTP: {ex.Message}\r\n";
+                            // LIBERAÇÃO: Liberar o lock para este arquivo
+                            fileLock.Release();
                         }
-
-                        string remoteFilePath = destinationPath + "/" + file.Name;
-                        fs = File.OpenRead(file.FullName);
-                        IAsyncResult? uploadResult = clientSFTP.BeginUploadFile(fs, remoteFilePath);
-                        clientSFTP.EndUploadFile(uploadResult);
-
-                        //clientSFTP.UploadFile(fs, remoteFilePath);
-
-
-                        taskActions.Message += $"Arquivo copiado: {file.Name}\r\n";
-
-                        taskActions.FilesProcessed.Add(file.Name);
-
-                        copiedFiles++;
                     }
                     catch (IOException ex)
                     {
-                        taskActions.Message += $"Erro de I/O ao copiar {file.Name}: {ex.Message}\r\n";
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] I/O ao copiar {file.Name}: {ex.Message}\r\n";
+                        failedFiles++;
                     }
                     catch (Exception ex)
                     {
-                        taskActions.Message += $"Erro ao fazer upload do arquivo {file.Name}: {ex.Message}\r\n";
-                    }
-                    finally
-                    {
-                        fs?.Dispose();
+                        taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro ao fazer upload do arquivo {file.Name}: {ex.Message}\r\n";
+                        failedFiles++;
                     }
                 }
 
                 taskActions.Success = copiedFiles > 0;
                 if (taskActions.Success)
                 {
-                    taskActions.Message += $"Total de {copiedFiles} arquivo(s) copiado(s) com sucesso para o SFTP.";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Total de {copiedFiles} arquivo(s) copiado(s) com sucesso para o SFTP. Falhas: {failedFiles}";
                 }
                 else
                 {
-                    taskActions.Message += "Nenhum arquivo foi copiado com sucesso para o SFTP.";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RESUMO] Nenhum arquivo foi copiado com sucesso para o SFTP. Falhas: {failedFiles}";
                 }
             }
             catch (Renci.SshNet.Common.SshConnectionException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro de conexão SFTP: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro de conexão SFTP: {ex.Message}";
             }
             catch (Renci.SshNet.Common.SshAuthenticationException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro de autenticação SFTP: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Erro de autenticação SFTP: {ex.Message}";
             }
             catch (TimeoutException ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Timeout na conexão SFTP: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Timeout na conexão SFTP: {ex.Message}";
             }
             catch (Exception ex)
             {
                 taskActions.Success = false;
-                taskActions.Message = $"Erro ao copiar para o SFTP: {ex.Message}";
+                taskActions.Message = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO CRÍTICO] Erro ao copiar para o SFTP: {ex.Message}";
             }
             finally
             {
@@ -336,11 +390,71 @@ namespace Infrastructure.Factorys
                 catch (Exception ex)
                 {
                     // Log mas não falha a operação por isso
-                    taskActions.Message += $"\r\nAviso: Erro ao fechar conexão SFTP: {ex.Message}";
+                    taskActions.Message += $"\r\n[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [AVISO] Erro ao fechar conexão SFTP: {ex.Message}";
                 }
             }
 
             return taskActions;
+        }
+
+        /// <summary>
+        /// Executa o upload de arquivo no SFTP com retry automático e backoff exponencial.
+        /// PROTEÇÃO: Falhas temporárias (timeout, I/O, SSH) são retentadas com delay crescente
+        /// ISOLAMENTO: Cada tentativa de retry abre um novo FileStream, evitando state corruption
+        /// </summary>
+        private static bool ExecuteSftpUploadWithRetry(SftpClient client, FileInfo file, string remoteFilePath, TaskActions taskActions)
+        {
+            int retryCount = 0;
+            int delayMs = InitialDelayMs;
+
+            while (retryCount < MaxRetries)
+            {
+                FileStream? fs = null;
+                try
+                {
+                    fs = File.OpenRead(file.FullName);
+                    IAsyncResult? uploadResult = client.BeginUploadFile(fs, remoteFilePath);
+                    client.EndUploadFile(uploadResult);
+                    return true;
+                }
+                catch (IOException ex) when (retryCount < MaxRetries - 1)
+                {
+                    // IOException pode ser temporária (ex: arquivo em uso), registrar e tentar novamente
+                    retryCount++;
+                    taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RETRY {retryCount}/{MaxRetries}] I/O error em {file.Name}, aguardando {delayMs}ms antes de tentar novamente: {ex.Message}\r\n";
+                    System.Threading.Thread.Sleep(delayMs);
+                    delayMs *= 2; // Backoff exponencial: 500ms, 1s, 2s
+                }
+                catch (TimeoutException ex) when (retryCount < MaxRetries - 1)
+                {
+                    // Timeout pode ser temporário (latência de rede), registrar e tentar novamente
+                    retryCount++;
+                    taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RETRY {retryCount}/{MaxRetries}] Timeout ao enviar {file.Name}, aguardando {delayMs}ms antes de tentar novamente: {ex.Message}\r\n";
+                    System.Threading.Thread.Sleep(delayMs);
+                    delayMs *= 2; // Backoff exponencial
+                }
+                catch (Renci.SshNet.Common.SshException ex) when (retryCount < MaxRetries - 1)
+                {
+                    // SshException pode ser temporária (ex: connection reset, transient network error)
+                    retryCount++;
+                    taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [RETRY {retryCount}/{MaxRetries}] Erro SSH em {file.Name}, aguardando {delayMs}ms antes de tentar novamente: {ex.Message}\r\n";
+                    System.Threading.Thread.Sleep(delayMs);
+                    delayMs *= 2; // Backoff exponencial
+                }
+                catch (Exception ex)
+                {
+                    // Outros erros não são retentáveis
+                    taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO NÃO-RETENTÁVEL] Falha irrecuperável ao enviar {file.Name}: {ex.GetType().Name} - {ex.Message}\r\n";
+                    return false;
+                }
+                finally
+                {
+                    fs?.Dispose();
+                }
+            }
+
+            taskActions.Message += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [ERRO] Falha ao enviar {file.Name} após {MaxRetries} tentativas. Limite de retries atingido.\r\n";
+            return false;
         }
 
         /// <summary>
