@@ -1,3 +1,15 @@
+using CopyToSFTPObserver;
+using Infrastructure;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Models.Configurations;
+using Models.MappingTasks;
+using Moq;
+using Xunit;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 namespace SftpSyncTool.Tests
 {
     public class WorkerTests
@@ -71,7 +83,7 @@ namespace SftpSyncTool.Tests
             _appSettingsMock.Setup(a => a.Value).Returns(appSettings);
 
             // Setup to return null (no tasks mapped)
-            _appTaskMapperConfiguratorMock.Setup(m => m.MapAppTask()).Returns((AppTask?)null);
+            _appTaskMapperConfiguratorMock.Setup(m => m.MapAppTask()).Returns((AppTask)null);
 
             var worker = new Worker(_loggerMock.Object, _appSettingsMock.Object, _appTaskMapperConfiguratorMock.Object);
 
