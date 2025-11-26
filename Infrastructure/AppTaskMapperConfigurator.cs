@@ -3,7 +3,7 @@ using Models.MappingTasks;
 
 namespace Infrastructure
 {
-    public class AppTaskMapperConfigurator
+    public class AppTaskMapperConfigurator : IAppTaskMapperConfigurator
     {
         private readonly ILogger<AppTaskMapperConfigurator> _logger;
 

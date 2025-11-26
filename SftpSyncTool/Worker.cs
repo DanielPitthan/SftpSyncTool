@@ -12,11 +12,11 @@ namespace CopyToSFTPObserver
     {
         private readonly ILogger<Worker> _logger;
         private readonly AppSettings _appSettings;
-        private readonly AppTaskMapperConfigurator _appTaskMapperConfigurator;
+        private readonly IAppTaskMapperConfigurator _appTaskMapperConfigurator;
 
         public Worker(ILogger<Worker> logger,
             IOptions<AppSettings> appSettings,
-            AppTaskMapperConfigurator appTaskMapperConfigurator)
+            IAppTaskMapperConfigurator appTaskMapperConfigurator)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _appSettings = appSettings?.Value ?? throw new ArgumentNullException(nameof(appSettings));

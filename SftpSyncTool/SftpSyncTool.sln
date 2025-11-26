@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.0.11222.15 d18.0
+VisualStudioVersion = 18.0.11222.15
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SftpSyncTool", "SftpSyncTool.csproj", "{7615215A-D9EE-4970-BA03-C7CE5B928065}"
 EndProject
@@ -16,6 +16,10 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "app", "app", "{29C72064-2D84-43D3-AAF8-3EC8EA7CA5EB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "..\Domain\Domain.csproj", "{3BB43B57-F636-4AAF-B189-96F4AE58DD8F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Testes", "Testes", "{69EDBFFA-CF37-4BE9-B7D5-53EA5F59A9C1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SftpSyncTool.Tests", "..\SftpSyncTool.Tests\SftpSyncTool.Tests.csproj", "{D633CB49-1AB5-5C7D-C130-E0B6863E7FC8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,6 +47,10 @@ Global
 		{3BB43B57-F636-4AAF-B189-96F4AE58DD8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3BB43B57-F636-4AAF-B189-96F4AE58DD8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3BB43B57-F636-4AAF-B189-96F4AE58DD8F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D633CB49-1AB5-5C7D-C130-E0B6863E7FC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D633CB49-1AB5-5C7D-C130-E0B6863E7FC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D633CB49-1AB5-5C7D-C130-E0B6863E7FC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D633CB49-1AB5-5C7D-C130-E0B6863E7FC8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -53,6 +61,7 @@ Global
 		{17C73B47-DFC2-4DB8-A70F-532E0F7769B2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{719B017A-C997-4927-84A2-E35D0AEE0AA4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{3BB43B57-F636-4AAF-B189-96F4AE58DD8F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{D633CB49-1AB5-5C7D-C130-E0B6863E7FC8} = {69EDBFFA-CF37-4BE9-B7D5-53EA5F59A9C1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BA8974FC-BEFC-47DB-B06A-8CAC4885B15B}

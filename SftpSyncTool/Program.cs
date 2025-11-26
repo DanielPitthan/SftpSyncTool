@@ -42,7 +42,7 @@ namespace CopyToSFTPObserver
             builder.Logging.AddCustomConsole();
             builder.Services.AddHostedService<Worker>();
 
-            builder.Services.AddSingleton<AppTaskMapperConfigurator>();
+            builder.Services.AddSingleton<IAppTaskMapperConfigurator, AppTaskMapperConfigurator>();
             builder.Services.AddHostedService<HttpServerWorker>(); // <- servidor HTTP
 
             var host = builder.Build();
